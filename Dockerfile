@@ -1,11 +1,14 @@
 FROM node:20-slim
 
-# Install latest stable Google Chrome inside the Linux container
+# Install necessary libraries and Google Chrome cleanly
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
-    && wget -q -O - https://google.com | apt-key add - \
-    && sh -c 'echo "deb [arch=amd64] http://google.com stable main" >> /etc/apt/sources.list.d/google.list' \
+    ca-certificates \
+    curl \
+    lsb-release \
+    && curl -fsSL https://google.com | gpg --dearmor -o /usr/share/keyrings/googlechrome-keyring.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-keyring.gpg] http://google.com stable main" > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update && apt-get install -y \
     google-chrome-stable \
     --no-install-recommends \
