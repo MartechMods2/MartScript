@@ -31,7 +31,7 @@ const qrcode = require('qrcode-terminal');
 const express = require('express');
 
 const app = express();
-const PORT = process.env.PORT || 10000; // Bind to default expected port
+const PORT = process.env.PORT || 10000; 
 const MONGO_URI = process.env.MONGO_URI; 
 
 if (!MONGO_URI) {
@@ -44,7 +44,7 @@ mongoose.connect(MONGO_URI).then(() => {
     console.log('Successfully connected to cloud database cluster.');
     const store = new MongoStore({ mongoose: mongoose });
     
-    // Initialize WhatsApp Client optimized for Puppeteer
+    // Initialize WhatsApp Client optimized for Puppeteer with Global Chrome Binaries
     const client = new Client({
         authStrategy: new RemoteAuth({
             store: store,
@@ -52,6 +52,7 @@ mongoose.connect(MONGO_URI).then(() => {
             clientId: "martchat-session"
         }),
         puppeteer: {
+            executablePath: '/usr/bin/google-chrome', // FIX: Forces Puppeteer to run the preinstalled Linux browser
             args: [
                 '--no-sandbox', 
                 '--disable-setuid-sandbox', 
