@@ -8,8 +8,8 @@ WORKDIR /app
 # Copy dependency mappings
 COPY package*.json ./
 
-# Clean installation of dependencies
-RUN npm ci --omit=dev
+# Standard installation of dependencies (fixes the missing lockfile error)
+RUN npm install --omit=dev
 
 # Copy all project code
 COPY . .
