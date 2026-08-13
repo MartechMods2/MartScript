@@ -5,11 +5,10 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 10000; 
 
-// Initialize WhatsApp Web Client with Docker Chrome config
+// Initialize WhatsApp Client optimized for the Puppeteer container environment
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
-        executablePath: '/usr/bin/google-chrome-stable', 
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox', 
@@ -19,7 +18,7 @@ const client = new Client({
     }
 });
 
-// Display the text QR code in the Render terminal logs
+// Render the text-based QR code directly in the terminal log stream
 client.on('qr', (qr) => {
     console.log('\n==================================================');
     console.log('SCAN THIS QR CODE WITH YOUR WHATSAPP PHONE APP:');
@@ -31,14 +30,14 @@ client.on('ready', () => {
     console.log('Success: WhatsApp Bot is active and connected!');
 });
 
-// Basic chat command logic
+// Simple test response command
 client.on('message', async (msg) => {
     if (msg.body.toLowerCase() === 'hello') {
         await msg.reply('Hi there! I am your automated WhatsApp bot.');
     }
 });
 
-// HTTP listener keeps the Render background worker happy
+// Keeps the Render health checker happy so the service stays alive
 app.get('/', (req, res) => {
     res.send('Bot Status: Active');
 });
