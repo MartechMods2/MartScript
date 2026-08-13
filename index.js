@@ -5,10 +5,11 @@ const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 10000; 
 
-// Initialize WhatsApp Client optimized for the Puppeteer container environment
+// Initialize WhatsApp Client targeting the container's global Chrome binary
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
+        executablePath: '/usr/bin/google-chrome', // Forces the system browser to load
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox', 
