@@ -1,3 +1,29 @@
+// ========================================================
+// SELF-INSTALLATION BOOTSTRAPPER (FIX FOR RENDER CACHE BUG)
+// ========================================================
+const { execSync } = require('child_process');
+
+console.log('Running system environment diagnostics...');
+try {
+    require.resolve('wwebjs-mongo');
+    console.log('Module check: "wwebjs-mongo" is present.');
+} catch (e) {
+    console.log('Module missing from cache. Forcing production library setup...');
+    try {
+        execSync('npm install express mongoose qrcode-terminal whatsapp-web.js wwebjs-mongo', { 
+            stdio: 'inherit',
+            env: { ...process.env, NODE_ENV: 'production' }
+        });
+        console.log('System packages successfully configured!');
+    } catch (err) {
+        console.error('Package installation failed:', err.message);
+        process.exit(1);
+    }
+}
+
+// ========================================================
+// CORE APPLICATION CODE
+// ========================================================
 const { Client, RemoteAuth } = require('whatsapp-web.js');
 const { MongoStore } = require('wwebjs-mongo');
 const mongoose = require('mongoose');
@@ -5,19 +31,20 @@ const qrcode = require('qrcode-terminal');
 const express = require('express');
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 10000; // Bind to default expected port
 const MONGO_URI = process.env.MONGO_URI; 
 
 if (!MONGO_URI) {
-    console.error("Error: MONGO_URI environment variable is missing!");
+    console.error("Critical Error: MONGO_URI environment variable is missing in Render settings!");
     process.exit(1);
 }
 
-// Connect to MongoDB Cloud Database
+// Establish secure pipeline with MongoDB Atlas
 mongoose.connect(MONGO_URI).then(() => {
+    console.log('Successfully connected to cloud database cluster.');
     const store = new MongoStore({ mongoose: mongoose });
     
-    // Initialize WhatsApp with Remote Cloud Authentication
+    // Initialize WhatsApp Client optimized for Puppeteer
     const client = new Client({
         authStrategy: new RemoteAuth({
             store: store,
@@ -25,7 +52,6 @@ mongoose.connect(MONGO_URI).then(() => {
             clientId: "martchat-session"
         }),
         puppeteer: {
-            // REMOVED hardcoded executablePath! The image detects it automatically.
             args: [
                 '--no-sandbox', 
                 '--disable-setuid-sandbox', 
@@ -35,6 +61,7 @@ mongoose.connect(MONGO_URI).then(() => {
         }
     });
 
+    // Output QR code blocks to log console
     client.on('qr', (qr) => {
         console.log('\n==================================================');
         console.log('SCAN THIS QR CODE WITH YOUR WHATSAPP PHONE APP:');
@@ -50,6 +77,7 @@ mongoose.connect(MONGO_URI).then(() => {
         console.log('Success: WhatsApp Bot is active and connected!');
     });
 
+    // Standard bot keyword responder
     client.on('message', async (msg) => {
         if (msg.body.toLowerCase() === 'hello') {
             await msg.reply('Hi there! I am your automated WhatsApp bot backed by cloud memory.');
@@ -61,6 +89,6 @@ mongoose.connect(MONGO_URI).then(() => {
     console.error("MongoDB Connection Error:", err);
 });
 
-// HTTP listener keeps the Render app happy
+// Simple public endpoint for Render health checker
 app.get('/', (req, res) => { res.send('Bot Status: Active'); });
 app.listen(PORT, '0.0.0.0', () => { console.log(`Web server listening on port ${PORT}`); });
