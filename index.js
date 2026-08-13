@@ -1,54 +1,66 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, RemoteAuth } = require('whatsapp-web.js');
+const { MongoStore } = require('wwebjs-mongo');
+const mongoose = require('mongoose');
 const qrcode = require('qrcode-terminal');
 const express = require('express');
 
 const app = express();
-// Pterodactyl passes network port mapping configurations via SERVER_PORT
-const PORT = process.env.SERVER_PORT || 3000; 
+const PORT = process.env.PORT || 10000;
+const MONGO_URI = process.env.MONGO_URI; 
 
-// Initialize WhatsApp Client optimized for Pterodactyl's Chromium path rules
-const client = new Client({
-    authStrategy: new LocalAuth({
-        dataPath: './.wwebjs_auth' // Explicit path maps to local persistent disk storage
-    }),
-    puppeteer: {
-        // Tells Puppeteer to leverage Pterodactyl's preinstalled Linux package location
-        executablePath: '/usr/bin/chromium-browser', 
-        args: [
-            '--no-sandbox', 
-            '--disable-setuid-sandbox', 
-            '--disable-dev-shm-usage',
-            '--disable-gpu'
-        ]
-    }
+if (!MONGO_URI) {
+    console.error("Error: MONGO_URI environment variable is missing!");
+    process.exit(1);
+}
+
+// Connect to MongoDB Cloud Database
+mongoose.connect(MONGO_URI).then(() => {
+    const store = new MongoStore({ mongoose: mongoose });
+    
+    // Initialize WhatsApp with Remote Cloud Authentication
+    const client = new Client({
+        authStrategy: new RemoteAuth({
+            store: store,
+            backupSyncIntervalMs: 60000, 
+            clientId: "martchat-session"
+        }),
+        puppeteer: {
+            // REMOVED hardcoded executablePath! The image detects it automatically.
+            args: [
+                '--no-sandbox', 
+                '--disable-setuid-sandbox', 
+                '--disable-dev-shm-usage',
+                '--disable-gpu'
+            ]
+        }
+    });
+
+    client.on('qr', (qr) => {
+        console.log('\n==================================================');
+        console.log('SCAN THIS QR CODE WITH YOUR WHATSAPP PHONE APP:');
+        console.log('==================================================\n');
+        qrcode.generate(qr, { small: true });
+    });
+
+    client.on('remote_auth_success', () => {
+        console.log('Success: Cloud Session Saved to MongoDB!');
+    });
+
+    client.on('ready', () => {
+        console.log('Success: WhatsApp Bot is active and connected!');
+    });
+
+    client.on('message', async (msg) => {
+        if (msg.body.toLowerCase() === 'hello') {
+            await msg.reply('Hi there! I am your automated WhatsApp bot backed by cloud memory.');
+        }
+    });
+
+    client.initialize();
+}).catch(err => {
+    console.error("MongoDB Connection Error:", err);
 });
 
-// Stream your authentication QR blocks directly to Pterodactyl's terminal interface
-client.on('qr', (qr) => {
-    console.log('\n==================================================');
-    console.log('SCAN THIS QR CODE WITH YOUR WHATSAPP PHONE APP:');
-    console.log('==================================================\n');
-    qrcode.generate(qr, { small: true });
-});
-
-client.on('ready', () => {
-    console.log('Success: WhatsApp Bot is active and connected!');
-});
-
-// Standard keyword chat trigger handler
-client.on('message', async (msg) => {
-    if (msg.body.toLowerCase() === 'hello') {
-        await msg.reply('Hi there! I am your automated WhatsApp bot.');
-    }
-});
-
-// Expose web port listener to avoid health monitoring execution blocks
-app.get('/', (req, res) => {
-    res.send('Bot Status: Active');
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Web server listening on port ${PORT}`);
-});
-
-client.initialize();
+// HTTP listener keeps the Render app happy
+app.get('/', (req, res) => { res.send('Bot Status: Active'); });
+app.listen(PORT, '0.0.0.0', () => { console.log(`Web server listening on port ${PORT}`); });
