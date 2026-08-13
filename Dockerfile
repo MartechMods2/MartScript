@@ -5,13 +5,16 @@ USER root
 
 WORKDIR /app
 
-# Copy dependency mappings
-COPY package*.json ./
+# COPY package.json directly to prepare installation
+COPY package.json ./
 
-# Standard installation of dependencies (fixes the missing lockfile error)
-RUN npm install --omit=dev
+# CACHE BUSTER: Increment this number if npm packages fail to update
+ENV CACHE_BYPASS_VERSION=1.0.2
 
-# Copy all project code
+# Force a completely clean installation of all packages
+RUN npm cache clean --force && npm install --omit=dev
+
+# Copy the rest of your application code
 COPY . .
 
 # Assign folder permissions to the safe runner user
