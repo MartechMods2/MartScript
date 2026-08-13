@@ -3,13 +3,17 @@ const qrcode = require('qrcode-terminal');
 const express = require('express');
 
 const app = express();
-const PORT = process.env.PORT || 10000; 
+// Pterodactyl passes network port mapping configurations via SERVER_PORT
+const PORT = process.env.SERVER_PORT || 3000; 
 
-// Initialize WhatsApp Client targeting the container's global Chrome binary
+// Initialize WhatsApp Client optimized for Pterodactyl's Chromium path rules
 const client = new Client({
-    authStrategy: new LocalAuth(),
+    authStrategy: new LocalAuth({
+        dataPath: './.wwebjs_auth' // Explicit path maps to local persistent disk storage
+    }),
     puppeteer: {
-        executablePath: '/usr/bin/google-chrome', // Forces the system browser to load
+        // Tells Puppeteer to leverage Pterodactyl's preinstalled Linux package location
+        executablePath: '/usr/bin/chromium-browser', 
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox', 
@@ -19,7 +23,7 @@ const client = new Client({
     }
 });
 
-// Render the text-based QR code directly in the terminal log stream
+// Stream your authentication QR blocks directly to Pterodactyl's terminal interface
 client.on('qr', (qr) => {
     console.log('\n==================================================');
     console.log('SCAN THIS QR CODE WITH YOUR WHATSAPP PHONE APP:');
@@ -31,14 +35,14 @@ client.on('ready', () => {
     console.log('Success: WhatsApp Bot is active and connected!');
 });
 
-// Simple test response command
+// Standard keyword chat trigger handler
 client.on('message', async (msg) => {
     if (msg.body.toLowerCase() === 'hello') {
         await msg.reply('Hi there! I am your automated WhatsApp bot.');
     }
 });
 
-// Keeps the Render health checker happy so the service stays alive
+// Expose web port listener to avoid health monitoring execution blocks
 app.get('/', (req, res) => {
     res.send('Bot Status: Active');
 });
